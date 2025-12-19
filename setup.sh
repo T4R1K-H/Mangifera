@@ -16,6 +16,14 @@ echo " Fedora 43 Minimal → MangoWC Post-Install"
 echo "========================================"
 
 # --------------------------------------------------
+# Detect invoking user (for xdg dirs)
+# --------------------------------------------------
+REAL_USER="${SUDO_USER:-}"
+if [[ -z "$REAL_USER" ]]; then
+  echo "Warning: could not detect non-root user."
+fi
+
+# --------------------------------------------------
 # User input
 # --------------------------------------------------
 read -rp "Is this a Laptop or Desktop? [l/d]: " SYSTEM_TYPE
@@ -47,13 +55,13 @@ dnf -y install \
   https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
 # --------------------------------------------------
-# Enable Terra repo (mangowc source)
+# Enable Terra repo
 # --------------------------------------------------
 dnf -y install \
   https://terra.fyralabs.com/repos/terra-release-$(rpm -E %fedora).noarch.rpm
 
 # --------------------------------------------------
-# Base system utilities
+# Base utilities
 # --------------------------------------------------
 dnf -y install \
   sudo \
@@ -64,6 +72,11 @@ dnf -y install \
   fastfetch \
   unzip p7zip \
   bash-completion
+
+# --------------------------------------------------
+# XDG user directories
+# --------------------------------------------------
+dnf -y install xdg-user-dirs xdg-user-dirs-gtk
 
 # --------------------------------------------------
 # Wayland + MangoWC
@@ -129,7 +142,7 @@ case "$GPU_TYPE" in
 esac
 
 # --------------------------------------------------
-# UI utilities (minimal & required)
+# UI utilities
 # --------------------------------------------------
 dnf -y install \
   waybar \
@@ -148,7 +161,7 @@ dnf -y install \
   file-roller
 
 # --------------------------------------------------
-# Fonts (Wayland-safe)
+# Fonts
 # --------------------------------------------------
 dnf -y install \
   jetbrains-mono-fonts \
@@ -156,7 +169,7 @@ dnf -y install \
   fontconfig
 
 # --------------------------------------------------
-# Power management (exclusive)
+# Power management
 # --------------------------------------------------
 dnf -y install tlp power-profiles-daemon
 
@@ -178,7 +191,7 @@ dnf -y install \
   gamescope
 
 # --------------------------------------------------
-# greetd (Wayland-native login)
+# greetd
 # --------------------------------------------------
 dnf -y install greetd greetd-regreet
 systemctl enable greetd
@@ -193,7 +206,7 @@ user = "greeter"
 EOF
 
 # --------------------------------------------------
-# Dotfiles skeleton (safe defaults)
+# Dotfiles skeleton
 # --------------------------------------------------
 SKEL="/etc/skel/.config"
 mkdir -p "$SKEL"/{mangowc,waybar,wofi,mako,foot}
@@ -233,12 +246,19 @@ border-radius=6
 EOF
 
 # --------------------------------------------------
+# Generate XDG dirs for existing user
+# --------------------------------------------------
+if [[ -n "$REAL_USER" && -d "/home/$REAL_USER" ]]; then
+  sudo -u "$REAL_USER" xdg-user-dirs-update
+fi
+
+# --------------------------------------------------
 # Completion
 # --------------------------------------------------
 echo ""
 echo "========================================"
-echo "        MangoWC system ready            "
+echo " MangoWC system ready"
 echo "========================================"
 echo ""
 echo "Reboot now."
-[[ "$GPU_TYPE" == "n" ]] && echo "⚠ NVIDIA users: reboot is REQUIRED."
+[[ "$GPU_TYPE" == "n" ]] && echo "NVIDIA users must reboot."
