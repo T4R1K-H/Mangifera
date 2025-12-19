@@ -59,10 +59,11 @@ if ! dnf repolist | grep -q rpmfusion-free; then
 fi
 
 # --------------------------------------------------
-# Enable Terra repo (FIXED)
+# Enable Terra repo (UPDATED)
 # --------------------------------------------------
 if ! dnf repolist | grep -q terra; then
-  dnf -y install https://terra.fyralabs.com/repos/terra-release.rpm
+  echo "Enabling Terra repository..."
+  dnf -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
 fi
 
 # --------------------------------------------------
@@ -226,11 +227,12 @@ cat > "$SKEL/waybar/style.css" << 'EOF'
 }
 EOF
 
-cat > "$SKEL/wofi/config << 'EOF'
+# Fixed syntax errors below (missing closing quotes on filenames)
+cat > "$SKEL/wofi/config" << 'EOF'
 show=drun
 EOF
 
-cat > "$SKEL/mako/config << 'EOF'
+cat > "$SKEL/mako/config" << 'EOF'
 border-radius=6
 EOF
 
