@@ -16,7 +16,16 @@ echo " Fedora 43 Minimal → MangoWC Post-Install"
 echo "========================================"
 
 # --------------------------------------------------
-# Detect invoking user (for xdg dirs)
+# Network check
+# --------------------------------------------------
+if ! ping -c1 -W2 8.8.8.8 &>/dev/null; then
+  echo "No network connectivity detected."
+  echo "Fix networking before running this script."
+  exit 1
+fi
+
+# --------------------------------------------------
+# Detect invoking user
 # --------------------------------------------------
 REAL_USER="${SUDO_USER:-}"
 if [[ -z "$REAL_USER" ]]; then
@@ -29,18 +38,11 @@ fi
 read -rp "Is this a Laptop or Desktop? [l/d]: " SYSTEM_TYPE
 read -rp "GPU type: Intel / AMD / NVIDIA? [i/a/n]: " GPU_TYPE
 
-SYSTEM_TYPE=$(echo "$SYSTEM_TYPE" | tr '[:upper:]' '[:lower:]')
-GPU_TYPE=$(echo "$GPU_TYPE" | tr '[:upper:]' '[:lower:]')
+SYSTEM_TYPE="${SYSTEM_TYPE,,}"
+GPU_TYPE="${GPU_TYPE,,}"
 
-if [[ ! "$SYSTEM_TYPE" =~ ^(l|d)$ ]]; then
-  echo "Invalid system type."
-  exit 1
-fi
-
-if [[ ! "$GPU_TYPE" =~ ^(i|a|n)$ ]]; then
-  echo "Invalid GPU type."
-  exit 1
-fi
+[[ "$SYSTEM_TYPE" =~ ^(l|d)$ ]] || { echo "Invalid system type."; exit 1; }
+[[ "$GPU_TYPE" =~ ^(i|a|n)$ ]] || { echo "Invalid GPU type."; exit 1; }
 
 # --------------------------------------------------
 # System update
@@ -48,33 +50,41 @@ fi
 dnf -y upgrade --refresh
 
 # --------------------------------------------------
-# Enable RPM Fusion
+# Enable RPM Fusion (idempotent)
 # --------------------------------------------------
-dnf -y install \
-  https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-  https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+if ! dnf repolist | grep -q rpmfusion-free; then
+  dnf -y install \
+    https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+    https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+fi
 
 # --------------------------------------------------
-# Enable Terra repo
+# Enable Terra repo (FIXED)
 # --------------------------------------------------
-dnf -y install \
-  https://terra.fyralabs.com/repos/terra-release-$(rpm -E %fedora).noarch.rpm
+if ! dnf repolist | grep -q terra; then
+  dnf -y install https://terra.fyralabs.com/repos/terra-release.rpm
+fi
+
+# --------------------------------------------------
+# Validate repos
+# --------------------------------------------------
+dnf makecache
+
+if ! dnf repolist | grep -q terra; then
+  echo "Terra repo not enabled. Aborting."
+  exit 1
+fi
 
 # --------------------------------------------------
 # Base utilities
 # --------------------------------------------------
 dnf -y install \
-  sudo \
-  curl wget \
-  git \
-  vim nano \
-  htop \
-  fastfetch \
-  unzip p7zip \
-  bash-completion
+  sudo curl wget git \
+  vim nano htop fastfetch \
+  unzip p7zip bash-completion
 
 # --------------------------------------------------
-# XDG user directories
+# XDG user dirs
 # --------------------------------------------------
 dnf -y install xdg-user-dirs xdg-user-dirs-gtk
 
@@ -94,22 +104,19 @@ dnf -y install \
 systemctl enable --now seatd
 
 # --------------------------------------------------
-# Audio (PipeWire)
+# Audio
 # --------------------------------------------------
 dnf -y install \
-  pipewire \
-  pipewire-alsa \
+  pipewire pipewire-alsa \
   pipewire-pulseaudio \
   pipewire-jack-audio-connection-kit \
-  wireplumber \
-  pavucontrol
+  wireplumber pavucontrol
 
 # --------------------------------------------------
 # Networking & Bluetooth
 # --------------------------------------------------
 dnf -y install \
-  NetworkManager \
-  network-manager-applet \
+  NetworkManager network-manager-applet \
   bluez blueman
 
 systemctl enable --now NetworkManager
@@ -120,24 +127,13 @@ systemctl enable --now bluetooth
 # --------------------------------------------------
 case "$GPU_TYPE" in
   i)
-    dnf -y install \
-      mesa-dri-drivers \
-      mesa-vulkan-drivers \
-      intel-media-driver \
-      libva-utils
+    dnf -y install mesa-dri-drivers mesa-vulkan-drivers intel-media-driver libva-utils
     ;;
   a)
-    dnf -y install \
-      mesa-dri-drivers \
-      mesa-vulkan-drivers \
-      mesa-va-drivers \
-      libva-utils
+    dnf -y install mesa-dri-drivers mesa-vulkan-drivers mesa-va-drivers libva-utils
     ;;
   n)
-    dnf -y install \
-      akmod-nvidia \
-      xorg-x11-drv-nvidia-cuda \
-      mesa-vulkan-drivers
+    dnf -y install akmod-nvidia xorg-x11-drv-nvidia-cuda mesa-vulkan-drivers
     ;;
 esac
 
@@ -145,9 +141,7 @@ esac
 # UI utilities
 # --------------------------------------------------
 dnf -y install \
-  waybar \
-  wofi \
-  mako \
+  waybar wofi mako \
   wl-clipboard \
   grim slurp swaybg kanshi
 
@@ -156,8 +150,7 @@ dnf -y install \
 # --------------------------------------------------
 dnf -y install \
   foot \
-  thunar \
-  thunar-archive-plugin \
+  thunar thunar-archive-plugin \
   file-roller
 
 # --------------------------------------------------
@@ -184,11 +177,7 @@ fi
 # --------------------------------------------------
 # Gaming stack
 # --------------------------------------------------
-dnf -y install \
-  steam \
-  gamemode \
-  mangohud \
-  gamescope
+dnf -y install steam gamemode mangohud gamescope
 
 # --------------------------------------------------
 # greetd
@@ -237,11 +226,11 @@ cat > "$SKEL/waybar/style.css" << 'EOF'
 }
 EOF
 
-cat > "$SKEL/wofi/config" << 'EOF'
+cat > "$SKEL/wofi/config << 'EOF'
 show=drun
 EOF
 
-cat > "$SKEL/mako/config" << 'EOF'
+cat > "$SKEL/mako/config << 'EOF'
 border-radius=6
 EOF
 
