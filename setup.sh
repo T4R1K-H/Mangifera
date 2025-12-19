@@ -50,7 +50,7 @@ GPU_TYPE="${GPU_TYPE,,}"
 dnf -y upgrade --refresh
 
 # --------------------------------------------------
-# Enable RPM Fusion (idempotent)
+# Enable RPM Fusion
 # --------------------------------------------------
 if ! dnf repolist | grep -q rpmfusion-free; then
   dnf -y install \
@@ -59,10 +59,10 @@ if ! dnf repolist | grep -q rpmfusion-free; then
 fi
 
 # --------------------------------------------------
-# Enable Terra repo (MANUAL OVERRIDE)
+# Enable Terra repo (MANUAL FORCE FIX)
 # --------------------------------------------------
-# We manually write the file to force gpgcheck=0
-# This fixes the "Bad PGP signature" error on Fedora 43
+# We write the file manually to disable GPG checks entirely.
+# This fixes the "Bad PGP signature" error in your screenshot.
 echo "Forcing Terra repository configuration..."
 cat > /etc/yum.repos.d/terra.repo << 'EOF'
 [terra]
@@ -77,6 +77,8 @@ EOF
 # --------------------------------------------------
 # Validate repos
 # --------------------------------------------------
+# Clean metadata to ensure we pick up the new config
+dnf clean all
 dnf makecache
 
 if ! dnf repolist | grep -q terra; then
@@ -100,9 +102,8 @@ dnf -y install xdg-user-dirs xdg-user-dirs-gtk
 # --------------------------------------------------
 # Wayland + MangoWC
 # --------------------------------------------------
-# Fixed package names:
-# xwayland -> xorg-x11-server-Xwayland
-# wayland -> removed (libraries pulled by dependencies)
+# FIXED: Replaced 'xwayland' with 'xorg-x11-server-Xwayland'
+# FIXED: Removed 'wayland' (library is auto-installed) to avoid "No match"
 dnf -y install \
   mangowc \
   wlroots \
@@ -194,7 +195,16 @@ dnf -y install steam gamemode mangohud gamescope
 # --------------------------------------------------
 # greetd
 # --------------------------------------------------
-dnf -y install greetd greetd-regreet
+# If greetd-regreet is still missing, we install just greetd to prevent crash
+if dnf search greetd-regreet &>/dev/null; then
+    dnf -y install greetd greetd-regreet
+else
+    echo "Warning: greetd-regreet not found in Terra. Installing standard greetd."
+    dnf -y install greetd
+    # Fallback to simple agreety config if regreet is missing
+    dnf -y install greetd-agreety
+fi
+
 systemctl enable greetd
 
 cat > /etc/greetd/config.toml << 'EOF'
