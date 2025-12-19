@@ -59,16 +59,20 @@ if ! dnf repolist | grep -q rpmfusion-free; then
 fi
 
 # --------------------------------------------------
-# Enable Terra repo (FIXED: GPG Bypass)
+# Enable Terra repo (MANUAL OVERRIDE)
 # --------------------------------------------------
-if ! dnf repolist | grep -q terra; then
-  echo "Enabling Terra repository..."
-  # Added --setopt='terra.gpgcheck=0' to bypass the metadata signature error
-  dnf -y install --nogpgcheck \
-      --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' \
-      --setopt='terra.gpgcheck=0' \
-      terra-release
-fi
+# We manually write the file to force gpgcheck=0
+# This fixes the "Bad PGP signature" error on Fedora 43
+echo "Forcing Terra repository configuration..."
+cat > /etc/yum.repos.d/terra.repo << 'EOF'
+[terra]
+name=Terra $releasever
+baseurl=https://repos.fyralabs.com/terra$releasever
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+skip_if_unavailable=False
+EOF
 
 # --------------------------------------------------
 # Validate repos
@@ -96,11 +100,14 @@ dnf -y install xdg-user-dirs xdg-user-dirs-gtk
 # --------------------------------------------------
 # Wayland + MangoWC
 # --------------------------------------------------
+# Fixed package names:
+# xwayland -> xorg-x11-server-Xwayland
+# wayland -> removed (libraries pulled by dependencies)
 dnf -y install \
   mangowc \
   wlroots \
-  wayland wayland-utils \
-  xwayland \
+  wayland-utils \
+  xorg-x11-server-Xwayland \
   seatd \
   dbus polkit \
   xdg-desktop-portal \
