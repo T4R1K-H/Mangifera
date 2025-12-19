@@ -59,11 +59,15 @@ if ! dnf repolist | grep -q rpmfusion-free; then
 fi
 
 # --------------------------------------------------
-# Enable Terra repo (UPDATED)
+# Enable Terra repo (FIXED: GPG Bypass)
 # --------------------------------------------------
 if ! dnf repolist | grep -q terra; then
   echo "Enabling Terra repository..."
-  dnf -y install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
+  # Added --setopt='terra.gpgcheck=0' to bypass the metadata signature error
+  dnf -y install --nogpgcheck \
+      --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' \
+      --setopt='terra.gpgcheck=0' \
+      terra-release
 fi
 
 # --------------------------------------------------
@@ -227,7 +231,6 @@ cat > "$SKEL/waybar/style.css" << 'EOF'
 }
 EOF
 
-# Fixed syntax errors below (missing closing quotes on filenames)
 cat > "$SKEL/wofi/config" << 'EOF'
 show=drun
 EOF
